@@ -1,18 +1,23 @@
 package com.kprasad.bitcointicker.viewmodel
 
-import androidx.hilt.lifecycle.ViewModelInject
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import com.kprasad.bitcointicker.data.TickerInfo
 import com.kprasad.bitcointicker.network.BitcoinGateway
+import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers
+import io.reactivex.rxjava3.core.Observable
+import io.reactivex.rxjava3.disposables.Disposable
 import retrofit2.Call
 import retrofit2.Callback
 import retrofit2.Response
+import java.util.concurrent.TimeUnit
 
 
 class MainViewModel constructor(private var bitcoinGateway: BitcoinGateway) :
     ViewModel() {
+
+    private var disposable: Disposable? = null
 
     //this is the data that we will fetch asynchronously
     private var bitCoinPrices: MutableLiveData<Map<String, TickerInfo>>? = null
@@ -22,12 +27,21 @@ class MainViewModel constructor(private var bitcoinGateway: BitcoinGateway) :
         //if the list is null
         if (bitCoinPrices == null) {
             bitCoinPrices = MutableLiveData<Map<String, TickerInfo>>()
-            //we will load it asynchronously from server in this method
-            bitcoinGateway.fetchBitcoinPrices(handleBitCoinPricesResponse())
+
+            setupTickerUpdates()
         }
 
         //finally we will return the list
         return bitCoinPrices
+    }
+
+    private fun setupTickerUpdates() {
+        disposable = Observable.interval(
+            INITIAL_DELAY, REFRESH_INTERVAL,
+            TimeUnit.MILLISECONDS
+        )
+            .observeOn(AndroidSchedulers.mainThread())
+            .subscribe { bitcoinGateway.fetchBitcoinPrices(handleBitCoinPricesResponse()) }
     }
 
     private fun handleBitCoinPricesResponse(): Callback<Map<String, TickerInfo>> {
@@ -46,4 +60,13 @@ class MainViewModel constructor(private var bitcoinGateway: BitcoinGateway) :
         }
     }
 
+    override fun onCleared() {
+        super.onCleared()
+        disposable?.dispose()
+    }
+
+    companion object {
+        const val INITIAL_DELAY = 1000L //delay 1 second before starting to fetch
+        const val REFRESH_INTERVAL = 1000L //every 1 second
+    }
 }
