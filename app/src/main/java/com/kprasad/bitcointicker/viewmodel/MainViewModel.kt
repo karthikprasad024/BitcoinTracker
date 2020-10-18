@@ -56,7 +56,6 @@ class MainViewModel constructor(private var bitcoinGateway: BitcoinGateway) :
             ) {
                 bitCoinPrices?.value = response.body() ?: hashMapOf()
             }
-
         }
     }
 
